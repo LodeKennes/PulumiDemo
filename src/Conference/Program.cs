@@ -3,6 +3,7 @@ using Pulumi.AzureNative.Resources;
 using Pulumi.AzureNative.Storage;
 using Pulumi.AzureNative.Storage.Inputs;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Pulumi.AzureNative.Insights;
 using Pulumi.AzureNative.Web;
 using Pulumi.AzureNative.Web.Inputs;
@@ -25,7 +26,35 @@ return await Pulumi.Deployment.RunAsync(() =>
         },
         Kind = Kind.StorageV2
     });
+    
+    var container = new BlobContainer("deployments", new BlobContainerArgs
+    {
+        AccountName = storageAccount.Name,
+        ResourceGroupName = resourceGroup.Name,
+        PublicAccess = PublicAccess.None
+    });
 
+    static Output<string> SignedBlobReadUrl(Blob blob, BlobContainer container, StorageAccount account, ResourceGroup resourceGroup)
+    {
+        var serviceSasToken = ListStorageAccountServiceSAS.Invoke(new ListStorageAccountServiceSASInvokeArgs
+        {
+            AccountName = account.Name,
+            Protocols = HttpProtocol.Https,
+            SharedAccessStartTime = "2021-01-01",
+            SharedAccessExpiryTime = "2030-01-01",
+            Resource = SignedResource.C,
+            ResourceGroupName = resourceGroup.Name,
+            Permissions = Permissions.R,
+            CanonicalizedResource = Output.Format($"/blob/{account.Name}/{container.Name}"),
+            ContentType = "application/json",
+            CacheControl = "max-age=5",
+            ContentDisposition = "inline",
+            ContentEncoding = "deflate",
+        }).Apply(blobSAS => blobSAS.ServiceSasToken);
+
+        return Output.Format($"https://{account.Name}.blob.core.windows.net/{container.Name}/{blob.Name}?{serviceSasToken}");
+    }
+    
     var storageAccountKeys = ListStorageAccountKeys.Invoke(new ListStorageAccountKeysInvokeArgs
     {
         ResourceGroupName = resourceGroup.Name,
@@ -38,6 +67,16 @@ return await Pulumi.Deployment.RunAsync(() =>
         var firstKey = items.Item2.Keys[0].Value;
         return
             $"DefaultEndpointsProtocol=https;AccountName={accountName};AccountKey={firstKey};EndpointSuffix=core.windows.net";
+    });
+    
+    var blob = new Blob("api", new BlobArgs
+    {
+        BlobName = "api.zip",
+        ResourceGroupName = resourceGroup.Name,
+        AccountName = storageAccount.Name,
+        ContainerName = container.Name,
+        Source = new FileArchive("../Conference.Api/bin/Release/net7.0/publish"),
+        Type = BlobType.Block
     });
     
     var appServicePlan = new AppServicePlan("appServicePlan", new AppServicePlanArgs
@@ -99,7 +138,7 @@ return await Pulumi.Deployment.RunAsync(() =>
     
     var sqlConnectionString = Output.Tuple(username.Result, password.Result, sql.Name)
         .Apply(result
-            => $"Server=tcp:{result.Item3}.database.windows.net,1433;Initial Catalog=axxesapp;Persist Security Info=False;User ID={result.Item1};Password={result.Item2};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
+            => $"Server=tcp:{result.Item3}.database.windows.net,1433;Initial Catalog=database;Persist Security Info=False;User ID={result.Item1};Password={result.Item2};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
     
     var appService = new WebApp(name: "apeservice",
         new WebAppArgs
@@ -112,6 +151,11 @@ return await Pulumi.Deployment.RunAsync(() =>
                 AlwaysOn = true,
                 AppSettings = new List<NameValuePairArgs>
                 {
+                    new()
+                    {
+                        Name=  "WEBSITE_RUN_FROM_PACKAGE",
+                        Value = SignedBlobReadUrl(blob, container, storageAccount, resourceGroup)
+                    },
                     new()
                     {
                         Name = "storage",
@@ -129,7 +173,7 @@ return await Pulumi.Deployment.RunAsync(() =>
                     }
                 },
                 WebSocketsEnabled = true,
-                NetFrameworkVersion = "v6.0"
+                NetFrameworkVersion = "v7.0"
             },
             Reserved = true,
             HttpsOnly = true

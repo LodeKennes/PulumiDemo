@@ -1,4 +1,4 @@
-namespace Conference.Api;
+namespace Conference.Api.Models;
 
 public class WeatherForecast
 {
