@@ -12,6 +12,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddLogging(options =>
+{
+    options.AddConsole();
+    options.AddApplicationInsights();
+});
+
 builder.Services.AddDbContext<DatabaseContext>(options =>
     options.UseSqlServer(builder.Configuration["DATABASE_CONNECTION"]));
 

@@ -182,8 +182,7 @@ return await Pulumi.Deployment.RunAsync(() =>
                     }
                 },
                 WebSocketsEnabled = true,
-                NetFrameworkVersion = "v7.0",
-                LinuxFxVersion = "DOTNET|7.0"
+                LinuxFxVersion = "DOTNETCORE|7.0"
             },
             Reserved = true,
             HttpsOnly = true
