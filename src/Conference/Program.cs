@@ -27,13 +27,6 @@ return await Pulumi.Deployment.RunAsync(() =>
         },
         Kind = Kind.StorageV2
     });
-
-    var container = new BlobContainer("deployments", new BlobContainerArgs
-    {
-        AccountName = storageAccount.Name,
-        ResourceGroupName = resourceGroup.Name,
-        PublicAccess = PublicAccess.None
-    });
     
     var appServicePlan = new AppServicePlan("appServicePlan", new AppServicePlanArgs
     {
