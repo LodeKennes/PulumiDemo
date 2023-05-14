@@ -1,0 +1,3 @@
+name: Conference
+description: A minimal Azure Native C# Pulumi program
+runtime: dotnet
