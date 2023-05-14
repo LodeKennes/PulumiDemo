@@ -4,6 +4,7 @@ using Pulumi.AzureNative.Storage;
 using Pulumi.AzureNative.Storage.Inputs;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Conference;
 using Pulumi.AzureNative.Insights;
 using Pulumi.AzureNative.Web;
 using Pulumi.AzureNative.Web.Inputs;
@@ -26,7 +27,7 @@ return await Pulumi.Deployment.RunAsync(() =>
         },
         Kind = Kind.StorageV2
     });
-    
+
     var container = new BlobContainer("deployments", new BlobContainerArgs
     {
         AccountName = storageAccount.Name,
@@ -34,41 +35,6 @@ return await Pulumi.Deployment.RunAsync(() =>
         PublicAccess = PublicAccess.None
     });
 
-    static Output<string> SignedBlobReadUrl(Blob blob, BlobContainer container, StorageAccount account, ResourceGroup resourceGroup)
-    {
-        var serviceSasToken = ListStorageAccountServiceSAS.Invoke(new ListStorageAccountServiceSASInvokeArgs
-        {
-            AccountName = account.Name,
-            Protocols = HttpProtocol.Https,
-            SharedAccessStartTime = "2021-01-01",
-            SharedAccessExpiryTime = "2030-01-01",
-            Resource = SignedResource.C,
-            ResourceGroupName = resourceGroup.Name,
-            Permissions = Permissions.R,
-            CanonicalizedResource = Output.Format($"/blob/{account.Name}/{container.Name}"),
-            ContentType = "application/json",
-            CacheControl = "max-age=5",
-            ContentDisposition = "inline",
-            ContentEncoding = "deflate",
-        }).Apply(blobSAS => blobSAS.ServiceSasToken);
-
-        return Output.Format($"https://{account.Name}.blob.core.windows.net/{container.Name}/{blob.Name}?{serviceSasToken}");
-    }
-    
-    var storageAccountKeys = ListStorageAccountKeys.Invoke(new ListStorageAccountKeysInvokeArgs
-    {
-        ResourceGroupName = resourceGroup.Name,
-        AccountName = storageAccount.Name
-    });
-
-    var primaryStorageKey = Output.Tuple(storageAccount.Name, storageAccountKeys).Apply(items =>
-    {
-        var accountName = items.Item1;
-        var firstKey = items.Item2.Keys[0].Value;
-        return
-            $"DefaultEndpointsProtocol=https;AccountName={accountName};AccountKey={firstKey};EndpointSuffix=core.windows.net";
-    });
-    
     var blob = new Blob("api", new BlobArgs
     {
         BlobName = "api.zip",
@@ -163,12 +129,7 @@ return await Pulumi.Deployment.RunAsync(() =>
                     new()
                     {
                         Name=  "WEBSITE_RUN_FROM_PACKAGE",
-                        Value = SignedBlobReadUrl(blob, container, storageAccount, resourceGroup)
-                    },
-                    new()
-                    {
-                        Name = "storage",
-                        Value = primaryStorageKey
+                        Value = Helpers.SignedBlobReadUrl(blob, container, storageAccount, resourceGroup)
                     },
                     new()
                     {
@@ -188,7 +149,20 @@ return await Pulumi.Deployment.RunAsync(() =>
             HttpsOnly = true
         });
 
-    // Export the primary key of the Storage Account
+    var storageAccountKeys = ListStorageAccountKeys.Invoke(new ListStorageAccountKeysInvokeArgs
+    {
+        ResourceGroupName = resourceGroup.Name,
+        AccountName = storageAccount.Name
+    });
+    
+    var primaryStorageKey = Output.Tuple(storageAccount.Name, storageAccountKeys).Apply(items =>
+    {
+        var accountName = items.Item1;
+        var firstKey = items.Item2.Keys[0].Value;
+        return
+            $"DefaultEndpointsProtocol=https;AccountName={accountName};AccountKey={firstKey};EndpointSuffix=core.windows.net";
+    });
+    
     return new Dictionary<string, object?>
     {
         ["primaryStorageKey"] = primaryStorageKey
