@@ -81,7 +81,8 @@ return await Pulumi.Deployment.RunAsync(() =>
     
     var appServicePlan = new AppServicePlan("appServicePlan", new AppServicePlanArgs
     {
-        Kind = "app",
+        Kind = "Linux",
+        Reserved = true,
         Name = "myexactname",
         ResourceGroupName = resourceGroup.Name,
         Sku = new SkuDescriptionArgs
@@ -136,6 +137,14 @@ return await Pulumi.Deployment.RunAsync(() =>
         }
     });
     
+    new Sql.FirewallRule("sqlFwRuleAllowAll", new Sql.FirewallRuleArgs {
+        EndIpAddress = "0.0.0.0",
+        FirewallRuleName = "AllowAllWindowsAzureIps", // required
+        ResourceGroupName = resourceGroup.Name,
+        ServerName = sql.Name,
+        StartIpAddress = "0.0.0.0",
+    });
+    
     var sqlConnectionString = Output.Tuple(username.Result, password.Result, sql.Name)
         .Apply(result
             => $"Server=tcp:{result.Item3}.database.windows.net,1433;Initial Catalog=database;Persist Security Info=False;User ID={result.Item1};Password={result.Item2};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
@@ -173,7 +182,8 @@ return await Pulumi.Deployment.RunAsync(() =>
                     }
                 },
                 WebSocketsEnabled = true,
-                NetFrameworkVersion = "v7.0"
+                NetFrameworkVersion = "v7.0",
+                LinuxFxVersion = "DOTNET|7.0"
             },
             Reserved = true,
             HttpsOnly = true

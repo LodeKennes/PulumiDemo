@@ -7,7 +7,6 @@ public class DatabaseContext : DbContext
 {
     public DatabaseContext(DbContextOptions<DatabaseContext> dbContextOptions) : base(dbContextOptions)
     {
-        Database.Migrate();
     }
 
     public DbSet<WeatherForecastSummary> WeatherForecastSummaries { get; set; }
