@@ -34,16 +34,6 @@ return await Pulumi.Deployment.RunAsync(() =>
         ResourceGroupName = resourceGroup.Name,
         PublicAccess = PublicAccess.None
     });
-
-    var blob = new Blob("api", new BlobArgs
-    {
-        BlobName = "api.zip",
-        ResourceGroupName = resourceGroup.Name,
-        AccountName = storageAccount.Name,
-        ContainerName = container.Name,
-        Source = new FileArchive("../Conference.Api/bin/Release/net7.0/publish"),
-        Type = BlobType.Block
-    });
     
     var appServicePlan = new AppServicePlan("appServicePlan", new AppServicePlanArgs
     {
@@ -60,94 +50,6 @@ return await Pulumi.Deployment.RunAsync(() =>
             Tier = "Basic"
         }
     });
-    
-    var appInsights = new Component("appinsights", new ComponentArgs
-    {
-        ApplicationType = ApplicationType.Web,
-        Kind = "web",
-        ResourceGroupName = resourceGroup.Name
-    });
-
-    var username = new Pulumi.Random.RandomString("db-username", new RandomStringArgs
-    {
-            Special = false,
-            Length = 20
-    });
-    
-    var password = new Pulumi.Random.RandomPassword("db-password", new RandomPasswordArgs
-    {
-        Special = false,
-        Length = 20
-    });
-
-    var sql = new Sql.Server("sqlserver", new Sql.ServerArgs
-    {
-        AdministratorLogin = username.Result,
-        AdministratorLoginPassword = password.Result,
-        Location = resourceGroup.Location,
-        ResourceGroupName = resourceGroup.Name,
-        PublicNetworkAccess = Sql.ServerPublicNetworkAccess.Enabled
-    });
-
-    var database = new Sql.Database("database", new Sql.DatabaseArgs
-    {
-        DatabaseName = "database",
-        ResourceGroupName = resourceGroup.Name,
-        Location = sql.Location,
-        ServerName = sql.Name,
-        Sku = new Sql.Inputs.SkuArgs
-        {
-            Capacity = 10,
-            Tier = "Standard",
-            Name = "Standard"
-        }
-    });
-    
-    new Sql.FirewallRule("sqlFwRuleAllowAll", new Sql.FirewallRuleArgs {
-        EndIpAddress = "0.0.0.0",
-        FirewallRuleName = "AllowAllWindowsAzureIps", // required
-        ResourceGroupName = resourceGroup.Name,
-        ServerName = sql.Name,
-        StartIpAddress = "0.0.0.0",
-    });
-    
-    var sqlConnectionString = Output.Tuple(username.Result, password.Result, sql.Name)
-        .Apply(result
-            => $"Server=tcp:{result.Item3}.database.windows.net,1433;Initial Catalog=database;Persist Security Info=False;User ID={result.Item1};Password={result.Item2};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
-    
-    var appService = new WebApp(name: "apeservice",
-        new WebAppArgs
-        {
-            ResourceGroupName = resourceGroup.Name,
-            Kind = "App",
-            ServerFarmId = appServicePlan.Id,
-            SiteConfig = new SiteConfigArgs
-            {
-                AlwaysOn = true,
-                AppSettings = new List<NameValuePairArgs>
-                {
-                    new()
-                    {
-                        Name=  "WEBSITE_RUN_FROM_PACKAGE",
-                        Value = Helpers.SignedBlobReadUrl(blob, container, storageAccount, resourceGroup)
-                    },
-                    new()
-                    {
-                        Name = "APPINSIGHTS_INSTRUMENTATIONKEY",
-                        Value = appInsights.InstrumentationKey
-                    },
-                    new()
-                    {
-                        Name = "DATABASE_CONNECTION",
-                        Value = sqlConnectionString
-                    }
-                },
-                WebSocketsEnabled = true,
-                LinuxFxVersion = "DOTNETCORE|7.0"
-            },
-            Reserved = true,
-            HttpsOnly = true
-        });
 
     var storageAccountKeys = ListStorageAccountKeys.Invoke(new ListStorageAccountKeysInvokeArgs
     {
