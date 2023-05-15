@@ -43,6 +43,25 @@ return await Pulumi.Deployment.RunAsync(() =>
             Tier = "Basic"
         }
     });
+    
+    var appService = new WebApp(name: "apeservice",
+        new WebAppArgs
+        {
+            ResourceGroupName = resourceGroup.Name,
+            Kind = "App",
+            ServerFarmId = appServicePlan.Id,
+            SiteConfig = new SiteConfigArgs
+            {
+                AlwaysOn = true,
+                AppSettings = new List<NameValuePairArgs>
+                {
+                },
+                WebSocketsEnabled = true,
+                LinuxFxVersion = "DOTNETCORE|7.0"
+            },
+            Reserved = true,
+            HttpsOnly = true
+        });
 
     var storageAccountKeys = ListStorageAccountKeys.Invoke(new ListStorageAccountKeysInvokeArgs
     {
