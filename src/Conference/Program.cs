@@ -41,7 +41,7 @@ return await Pulumi.Deployment.RunAsync(() =>
         ResourceGroupName = resourceGroup.Name,
         AccountName = storageAccount.Name,
         ContainerName = container.Name,
-        Source = new FileArchive("../Conference.Api/bin/Release/net7.0/publish"),
+        Source = new FileArchive("../Conference.Api/bin/Release/net8.0/publish"),
         Type = BlobType.Block
     });
     
@@ -65,7 +65,8 @@ return await Pulumi.Deployment.RunAsync(() =>
     {
         ApplicationType = ApplicationType.Web,
         Kind = "web",
-        ResourceGroupName = resourceGroup.Name
+        ResourceGroupName = resourceGroup.Name,
+        IngestionMode = IngestionMode.ApplicationInsights
     });
 
     var username = new Pulumi.Random.RandomString("db-username", new RandomStringArgs
@@ -86,7 +87,7 @@ return await Pulumi.Deployment.RunAsync(() =>
         AdministratorLoginPassword = password.Result,
         Location = resourceGroup.Location,
         ResourceGroupName = resourceGroup.Name,
-        PublicNetworkAccess = Sql.ServerPublicNetworkAccess.Enabled
+        PublicNetworkAccess = Sql.ServerNetworkAccessFlag.Enabled
     });
 
     var database = new Sql.Database("database", new Sql.DatabaseArgs
@@ -143,7 +144,7 @@ return await Pulumi.Deployment.RunAsync(() =>
                     }
                 },
                 WebSocketsEnabled = true,
-                LinuxFxVersion = "DOTNETCORE|7.0"
+                LinuxFxVersion = "DOTNETCORE|8.0"
             },
             Reserved = true,
             HttpsOnly = true

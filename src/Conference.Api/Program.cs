@@ -23,8 +23,10 @@ builder.Services.AddDbContext<DatabaseContext>(options =>
 
 var app = builder.Build();
 
-var database = app.Services.GetRequiredService<DatabaseContext>();
+var scope = app.Services.CreateAsyncScope();
+var database = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
 database.Database.Migrate();
+scope.Dispose();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
