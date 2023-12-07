@@ -44,7 +44,7 @@ return await Pulumi.Deployment.RunAsync(() =>
         }
     });
     
-    var appService = new WebApp(name: "apeservice",
+    var appService = new WebApp(name: "appservice",
         new WebAppArgs
         {
             ResourceGroupName = resourceGroup.Name,
