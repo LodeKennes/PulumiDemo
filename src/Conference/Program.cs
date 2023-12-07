@@ -116,7 +116,7 @@ return await Pulumi.Deployment.RunAsync(() =>
         .Apply(result
             => $"Server=tcp:{result.Item3}.database.windows.net,1433;Initial Catalog=database;Persist Security Info=False;User ID={result.Item1};Password={result.Item2};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
     
-    var appService = new WebApp(name: "apeservice",
+    var appService = new WebApp(name: "appservice",
         new WebAppArgs
         {
             ResourceGroupName = resourceGroup.Name,
